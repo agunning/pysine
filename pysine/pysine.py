@@ -37,19 +37,25 @@ class PySine(object):
         self.stream.close()
         self.pyaudio.terminate()
 
-    def sine(self, frequency=440.0, duration=1.0):
+    def sine(self, frequency=440.0, duration=1.0,clip=.02,exp_lam=0):
         """
         This will generate a sine wave with minimum of 1 second duration.
         """
         grain = round(self.BITRATE / frequency)
         points = grain * round(self.BITRATE * duration / grain)
         duration = points / self.BITRATE
+        c_points=round(clip*self.BITRATE)
+        c_freq=.25/clip
 
         data = np.zeros(int(self.BITRATE * max(duration, 1.0)))
 
         try:
             times = np.linspace(0, duration, points, endpoint=False)
             data[:points] = np.sin(times * frequency * 2 * np.pi)
+            clip_mult=np.sin(times[:c_points]*c_freq * 2 * np.pi)**2
+            data[:c_points]*=clip_mult
+            data[-:c_points]*=1-clip_mult
+            data*=np.exp(-times*exp_lam)
             data = np.array((data + 1.0) * 127.5, dtype=np.int8).tostring()
         except:  # do it without numpy
             data = ''
